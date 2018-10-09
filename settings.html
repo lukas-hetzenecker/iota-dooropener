@@ -1,0 +1,130 @@
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>IOTAction</title>
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/4.1.3/css/bootstrap.min.css">
+</head>
+
+<body>
+<div class="container">
+    <nav class="navbar navbar-expand-lg navbar-light bg-light">
+        <span class="navbar-brand">IOTAction</span>
+        <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarNav"
+                aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="navbarNav">
+            <ul class="navbar-nav">
+                <li class="nav-item">
+                    <a class="nav-link" href="index.html">Home</a>
+                </li>
+                <li class="nav-item active">
+                    <a class="nav-link" href="settings.html">Settings</a>
+                </li>
+            </ul>
+        </div>
+    </nav>
+
+    <div class="card mt-3">
+        <div class="card-body">
+
+            <div class="form-group row">
+                <label for="seed" class="col-sm-1 col-form-label">Seed</label>
+                <div class="col-sm-11">
+                    <div class="input-group">
+                        <input type="text" class="form-control" placeholder="IOTA Seed" id="seed">
+                        <div class="input-group-append">
+                            <button class="btn btn-outline-secondary" type="button" id="new_seed"><i id="open_door_icon"
+                                                                                                     class="fa fa-refresh"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-group row">
+                <label for="sidekey" class="col-sm-1 col-form-label">Sidekey</label>
+                <div class="col-sm-11">
+                    <div class="input-group">
+                        <input type="text" class="form-control" placeholder="Sidekey (optional)" id="sidekey">
+                    </div>
+                </div>
+            </div>
+
+            <button type="submit" class="btn btn-primary btn-lg btn-block" id="save">Save</button>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/4.1.3/js/bootstrap.bundle.min.js"></script>
+
+    <script src="lib/iota-browser.js"></script>
+    <script src="lib/mam.web.js"></script>
+    <script src="lib/powsrv.js"></script>
+
+    <script type="text/javascript">
+        var Mam = require('mam.web.js');
+
+        //var iota = new IOTA({provider: `https://pow1.iota.community:443`});
+        var iota = new IOTA({provider: `http://192.168.22.11:14265`});
+        usePowSrvIO(iota, 5000, null);
+
+        var generateSeed = function () {
+
+            var length = 81;                            // The length of the seed and int array.
+            var chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ9"; // The allowed characters in the seed.
+            var randomValues = new Uint32Array(length);       // An empty array to store the random values.
+            var result = new Array(length);             // An empty array to store the seed characters.
+
+            window.crypto.getRandomValues(randomValues);      // Generate random values and store them to array.
+
+            var cursor = 0;                                   // A cursor is introduced to remove modulus bias.
+            for (var i = 0; i < randomValues.length; i++) {   // Loop through each of the 81 random values.
+                cursor += randomValues[i];                    // Add them to the cursor.
+                result[i] = chars[cursor % chars.length];     // Assign a new character to the seed based on cursor mod 81.
+            }
+
+            return result.join('');                           // Merge the array into a single string and return it.
+
+        };
+
+    </script>
+
+    <script type="text/javascript">
+        $( document ).ready(function() {
+            let mamState = JSON.parse(localStorage.getItem('dooropener_state'));
+            if (mamState != null) {
+                $( "#seed" ).val(mamState.seed);
+                $( "#sidekey" ).val(iota.utils.fromTrytes(mamState.channel.side_key));
+            }
+        });
+
+        $( "#new_seed" ).click(function () {
+            $( "#seed" ).val(generateSeed());
+        });
+
+        $( "#save" ).click(function () {
+            let mode = 'private';
+            let sidekey = undefined;
+            if ($("#sidekey").val()) {
+                mode = 'restricted';
+                sidekey = iota.utils.toTrytes($("#sidekey").val());
+            }
+
+            let mamState = Mam.init(iota, $( "#seed" ).val());
+            mamState = Mam.changeMode(
+                mamState,
+                mode,
+                sidekey
+            );
+
+            localStorage.setItem('dooropener_state', JSON.stringify(mamState));
+        });
+    </script>
+</body>
+
+</html>
